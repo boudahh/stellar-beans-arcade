@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Stellar Beans: Bean Runner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="gameShell">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <div id="overlay" class="screen">
+      <img src="assets/stellar-long-logo.jpg" class="titleLogo" alt="Stellar Beans" />
+      <h1>BEAN RUNNER</h1>
+      <p>Collect beans. Dodge cosmic weirdness. Stay caffeinated.</p>
+      <button id="startBtn">INSERT COFFEE</button>
+      <p class="small">Move: Arrow keys / WASD / Drag or tap on mobile</p>
+    </div>
+
+    <div id="gameOver" class="screen hidden">
+      <h1>GAME OVER</h1>
+      <p id="finalScore">Score: 0</p>
+      <p id="finalHigh">High Score: 0</p>
+      <button id="restartBtn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
