@@ -24,6 +24,7 @@ canvas {
   width: min(100vw, 1280px);
   height: auto;
   max-height: 100vh;
+  touch-action: none;
   image-rendering: pixelated;
   border: 3px solid #6f4a91;
   box-shadow: 0 0 35px rgba(120, 70, 180, .35);
@@ -85,4 +86,22 @@ button {
 
 button:hover {
   transform: scale(1.03);
+}
+
+
+@media (orientation: portrait) {
+  canvas {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    object-fit: contain;
+  }
+
+  .screen {
+    padding: 18px;
+  }
+
+  .titleLogo {
+    width: min(460px, 88vw);
+  }
 }
