@@ -1,6 +1,23 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Mobile-friendly layout:
+// - Desktop/tablet landscape uses 960x540.
+// - Phone portrait uses 540x960.
+function isPortraitMobile() {
+  return window.innerHeight > window.innerWidth && window.innerWidth <= 800;
+}
+
+function setCanvasForScreen() {
+  if (isPortraitMobile()) {
+    canvas.width = 540;
+    canvas.height = 960;
+  } else {
+    canvas.width = 960;
+    canvas.height = 540;
+  }
+}
+
 const overlay = document.getElementById("overlay");
 const gameOver = document.getElementById("gameOver");
 const startBtn = document.getElementById("startBtn");
@@ -20,11 +37,13 @@ let spawnTimer = 0;
 let pickupTimer = 0;
 let frame = 0;
 
+setCanvasForScreen();
+
 const player = {
   x: 140,
   y: canvas.height / 2,
-  w: 82,
-  h: 52,
+  w: 96,
+  h: 80,
   vy: 0,
   health: 3,
   fuel: 100
@@ -46,6 +65,17 @@ function resetStars() {
   }
 }
 
+function keepPlayerOnScreen() {
+  player.x = Math.max(30, Math.min(canvas.width - 130, player.x));
+  player.y = Math.max(40, Math.min(canvas.height - 110, player.y));
+}
+
+window.addEventListener("resize", () => {
+  setCanvasForScreen();
+  keepPlayerOnScreen();
+  resetStars();
+});
+
 function startGame() {
   running = true;
   score = 0;
@@ -54,7 +84,7 @@ function startGame() {
   pickupTimer = 0;
   hazards = [];
   pickups = [];
-  player.x = 140;
+  player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
   player.fuel = 100;
@@ -82,7 +112,7 @@ function spawnHazard() {
   hazards.push({
     type,
     x: canvas.width + 80,
-    y: 45 + Math.random() * (canvas.height - 120),
+    y: 70 + Math.random() * (canvas.height - 150),
     w: type === "ufo" ? 58 : size,
     h: type === "ufo" ? 34 : size,
     spin: Math.random() * Math.PI,
@@ -96,7 +126,7 @@ function spawnPickup() {
   pickups.push({
     kind,
     x: canvas.width + 60,
-    y: 45 + Math.random() * (canvas.height - 110),
+    y: 70 + Math.random() * (canvas.height - 150),
     w: kind === "saturn" ? 36 : 28,
     h: kind === "saturn" ? 36 : 28,
     speed: speed + 1.1,
@@ -133,176 +163,73 @@ function drawCupShip() {
   const x = player.x;
   const y = player.y + bob;
 
-  // soft engine glow
-  ctx.save();
-  const glow = ctx.createRadialGradient(x + 2, y + 42, 2, x + 2, y + 42, 34);
-  glow.addColorStop(0, "rgba(46, 216, 255, 0.55)");
-  glow.addColorStop(1, "rgba(46, 216, 255, 0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(x + 2, y + 42, 34, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // upgraded steam trail
-  for (let i = 0; i < 6; i++) {
-    const puffX = x - 18 - i * 15;
-    const puffY = y + 38 + Math.sin(frame / 6 + i) * 7;
-    const puffSize = 9 + i * 2;
-
-    ctx.globalAlpha = 0.38 - i * 0.045;
+  // steam trail
+  for (let i = 0; i < 5; i++) {
+    ctx.globalAlpha = 0.35 - i * 0.045;
     ctx.fillStyle = i % 2 ? "#b6e7ff" : "#ffffff";
     ctx.beginPath();
-    ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+    ctx.arc(x - 14 - i * 16, y + 32 + Math.sin(frame / 5 + i) * 7, 10 + i * 2, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // back mechanical booster rail
-  ctx.fillStyle = "#4a3b36";
-  ctx.fillRect(x + 2, y + 34, 66, 18);
-
-  // metal highlights
-  ctx.fillStyle = "#8d7b6a";
-  ctx.fillRect(x + 12, y + 37, 42, 4);
-  ctx.fillStyle = "#2a2220";
-  ctx.fillRect(x + 12, y + 47, 42, 3);
-
-  // blue rear thruster
+  // boosters
+  ctx.fillStyle = "#6b5a4a";
+  ctx.fillRect(x + 8, y + 35, 58, 15);
   ctx.fillStyle = "#2ed8ff";
   ctx.beginPath();
-  ctx.arc(x + 2, y + 43, 11, 0, Math.PI * 2);
+  ctx.arc(x + 3, y + 42, 10, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.fillStyle = "#dff8ff";
-  ctx.beginPath();
-  ctx.arc(x + 0, y + 43, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // front warm thruster / nose light
   ctx.fillStyle = "#ffb347";
   ctx.beginPath();
-  ctx.arc(x + 72, y + 43, 8, 0, Math.PI * 2);
+  ctx.arc(x + 70, y + 42, 8, 0, Math.PI * 2);
   ctx.fill();
 
-  // cup shadow
-  ctx.fillStyle = "#c7b795";
-  ctx.beginPath();
-  ctx.roundRect(x + 14, y + 19, 62, 34, 8);
-  ctx.fill();
-
-  // main cup body
+  // cup body
   ctx.fillStyle = "#efe2c8";
-  ctx.strokeStyle = "#2d2522";
+  ctx.strokeStyle = "#3a2f2a";
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(x + 12, y + 16, 64, 34, 8);
+  ctx.roundRect(x + 12, y + 16, 62, 34, 8);
   ctx.fill();
   ctx.stroke();
-
-  // cup rim / coffee top
-  ctx.fillStyle = "#3a2116";
-  ctx.strokeStyle = "#2d2522";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.ellipse(x + 44, y + 16, 34, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // subtle coffee shine
-  ctx.globalAlpha = 0.35;
-  ctx.strokeStyle = "#9b6a44";
-  ctx.beginPath();
-  ctx.ellipse(x + 38, y + 14, 12, 3, -0.2, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
 
   // cup handle
-  ctx.strokeStyle = "#2d2522";
-  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.arc(x + 77, y + 32, 14, -1.15, 1.15);
+  ctx.arc(x + 76, y + 32, 13, -1.2, 1.2);
   ctx.stroke();
 
-  ctx.strokeStyle = "#efe2c8";
-  ctx.lineWidth = 4;
+  // coffee top
+  ctx.fillStyle = "#3a2116";
   ctx.beginPath();
-  ctx.arc(x + 77, y + 32, 8, -1.15, 1.15);
-  ctx.stroke();
+  ctx.ellipse(x + 43, y + 16, 33, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-  // cockpit canopy
-  ctx.fillStyle = "#101926";
+  // canopy
+  ctx.fillStyle = "#111827";
   ctx.strokeStyle = "#d9edf7";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(x + 45, y + 13, 18, Math.PI, Math.PI * 2);
+  ctx.arc(x + 44, y + 13, 18, Math.PI, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-
-  // canopy glow
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = "#6ee7ff";
-  ctx.beginPath();
-  ctx.arc(x + 39, y + 10, 8, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
 
   // tiny pilot
   ctx.fillStyle = "#f7ead0";
-  ctx.fillRect(x + 37, y + 4, 14, 11);
+  ctx.fillRect(x + 37, y + 4, 13, 11);
   ctx.fillStyle = "#05040b";
-  ctx.fillRect(x + 42, y + 7, 5, 4);
+  ctx.fillRect(x + 41, y + 7, 5, 4);
 
-  // antenna
-  ctx.strokeStyle = "#7efc9a";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x + 58, y + 3);
-  ctx.lineTo(x + 66, y - 8);
-  ctx.stroke();
-
-  ctx.fillStyle = frame % 40 < 20 ? "#7efc9a" : "#2ed8ff";
-  ctx.beginPath();
-  ctx.arc(x + 67, y - 9, 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // cleaner Saturn Bean style logo on side
-  ctx.save();
-  ctx.translate(x + 44, y + 34);
-  ctx.rotate(-0.32);
-
+  // saturn logo approximation
   ctx.strokeStyle = "#b87932";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 20, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + 43, y + 34, 19, 7, -0.4, 0, Math.PI * 2);
   ctx.stroke();
-
   ctx.fillStyle = "#8b4b24";
   ctx.beginPath();
-  ctx.ellipse(0, 0, 9, 13, 0.45, 0, Math.PI * 2);
+  ctx.ellipse(x + 43, y + 34, 9, 13, 0.4, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.strokeStyle = "#3a2116";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, -10);
-  ctx.bezierCurveTo(-4, -4, 4, 4, 0, 10);
-  ctx.stroke();
-
-  ctx.restore();
-
-  // tiny rivets / patched homemade feel
-  ctx.fillStyle = "#8d7b6a";
-  ctx.fillRect(x + 22, y + 23, 4, 4);
-  ctx.fillRect(x + 64, y + 24, 4, 4);
-  ctx.fillRect(x + 58, y + 42, 4, 4);
-
-  // little duct-tape patch
-  ctx.fillStyle = "#b9b2a4";
-  ctx.fillRect(x + 19, y + 39, 14, 6);
-  ctx.strokeStyle = "#777166";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 19, y + 39, 14, 6);
 }
 
 function drawBean(p) {
@@ -381,14 +308,15 @@ function drawHUD() {
   ctx.fillText(`SCORE ${Math.floor(score).toString().padStart(5, "0")}`, 35, 45);
   ctx.fillText(`HI ${highScore.toString().padStart(5, "0")}`, 35, 75);
 
+  const healthX = canvas.width - 165;
   for (let i = 0; i < 3; i++) {
     ctx.fillStyle = i < player.health ? "#ff4f6d" : "#2b2530";
-    ctx.fillRect(795 + i * 28, 25, 20, 20);
+    ctx.fillRect(healthX + i * 28, 25, 20, 20);
   }
 
   ctx.fillStyle = "#f7ead0";
   ctx.font = "16px Courier New";
-  ctx.fillText("HEALTH", 795, 64);
+  ctx.fillText("HEALTH", healthX, 64);
 }
 
 function update() {
@@ -403,8 +331,7 @@ function update() {
     if (keys.ArrowLeft || keys.a) player.x -= 4.6;
     if (keys.ArrowRight || keys.d) player.x += 4.6;
 
-    player.x = Math.max(30, Math.min(canvas.width - 130, player.x));
-    player.y = Math.max(40, Math.min(canvas.height - 90, player.y));
+    keepPlayerOnScreen();
 
     spawnTimer--;
     pickupTimer--;
@@ -459,13 +386,44 @@ function update() {
 window.addEventListener("keydown", e => keys[e.key] = true);
 window.addEventListener("keyup", e => keys[e.key] = false);
 
-canvas.addEventListener("pointermove", e => {
-  if (!running) return;
+let pointerActive = false;
+let pointerOffsetX = 0;
+let pointerOffsetY = 0;
+
+function pointerToCanvas(e) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  player.x = (e.clientX - rect.left) * scaleX - player.w / 2;
-  player.y = (e.clientY - rect.top) * scaleY - player.h / 2;
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+// Touch/drag anywhere on the game screen.
+// You do NOT have to put your finger on top of the ship.
+// Wherever you first touch becomes your control point.
+canvas.addEventListener("pointerdown", e => {
+  if (!running) return;
+  canvas.setPointerCapture(e.pointerId);
+  const p = pointerToCanvas(e);
+  pointerActive = true;
+  pointerOffsetX = player.x - p.x;
+  pointerOffsetY = player.y - p.y;
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!running || !pointerActive) return;
+  const p = pointerToCanvas(e);
+  player.x = p.x + pointerOffsetX;
+  player.y = p.y + pointerOffsetY;
+  keepPlayerOnScreen();
+});
+
+canvas.addEventListener("pointerup", () => {
+  pointerActive = false;
+});
+
+canvas.addEventListener("pointercancel", () => {
+  pointerActive = false;
 });
 
 startBtn.addEventListener("click", startGame);
