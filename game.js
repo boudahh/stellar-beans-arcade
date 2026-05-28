@@ -11,6 +11,9 @@ const finalHigh = document.getElementById("finalHigh");
 const saturnImg = new Image();
 saturnImg.src = "assets/saturn-bean.png";
 
+const shipIdleImg = new Image();
+shipIdleImg.src = "assets/ships/ship_idle.png";
+
 let running = false;
 let keys = {};
 let score = 0;
@@ -23,8 +26,8 @@ let frame = 0;
 const player = {
   x: 140,
   y: canvas.height / 2,
-  w: 82,
-  h: 52,
+  w: 120,
+  h: 90,
   vy: 0,
   health: 3,
   fuel: 100
@@ -130,76 +133,19 @@ function drawStars() {
 
 function drawCupShip() {
   const bob = Math.sin(frame / 14) * 3;
-  const x = player.x;
-  const y = player.y + bob;
 
-  // steam trail
-  for (let i = 0; i < 5; i++) {
-    ctx.globalAlpha = 0.35 - i * 0.045;
-    ctx.fillStyle = i % 2 ? "#b6e7ff" : "#ffffff";
-    ctx.beginPath();
-    ctx.arc(x - 14 - i * 16, y + 32 + Math.sin(frame / 5 + i) * 7, 10 + i * 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  // Draws the real idle ship sprite from assets/ships/ship_idle.png
+  // Change these two numbers later if you want the ship bigger or smaller.
+  const shipWidth = 120;
+  const shipHeight = 90;
 
-  // boosters
-  ctx.fillStyle = "#6b5a4a";
-  ctx.fillRect(x + 8, y + 35, 58, 15);
-  ctx.fillStyle = "#2ed8ff";
-  ctx.beginPath();
-  ctx.arc(x + 3, y + 42, 10, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ffb347";
-  ctx.beginPath();
-  ctx.arc(x + 70, y + 42, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // cup body
-  ctx.fillStyle = "#efe2c8";
-  ctx.strokeStyle = "#3a2f2a";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.roundRect(x + 12, y + 16, 62, 34, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  // cup handle
-  ctx.beginPath();
-  ctx.arc(x + 76, y + 32, 13, -1.2, 1.2);
-  ctx.stroke();
-
-  // coffee top
-  ctx.fillStyle = "#3a2116";
-  ctx.beginPath();
-  ctx.ellipse(x + 43, y + 16, 33, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // canopy
-  ctx.fillStyle = "#111827";
-  ctx.strokeStyle = "#d9edf7";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(x + 44, y + 13, 18, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // tiny pilot
-  ctx.fillStyle = "#f7ead0";
-  ctx.fillRect(x + 37, y + 4, 13, 11);
-  ctx.fillStyle = "#05040b";
-  ctx.fillRect(x + 41, y + 7, 5, 4);
-
-  // saturn logo approximation
-  ctx.strokeStyle = "#b87932";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.ellipse(x + 43, y + 34, 19, 7, -0.4, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = "#8b4b24";
-  ctx.beginPath();
-  ctx.ellipse(x + 43, y + 34, 9, 13, 0.4, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.drawImage(
+    shipIdleImg,
+    player.x,
+    player.y + bob,
+    shipWidth,
+    shipHeight
+  );
 }
 
 function drawBean(p) {
