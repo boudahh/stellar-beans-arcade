@@ -52,6 +52,86 @@ const player = {
 let hazards = [];
 let pickups = [];
 let stars = [];
+let particles = [];
+let floatingTexts = [];
+let screenShake = 0;
+let hitFlash = 0;
+
+
+function addPickupEffect(x, y, value) {
+  floatingTexts.push({
+    x,
+    y,
+    text: "+" + value,
+    life: 40
+  });
+
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: (Math.random() - 0.5) * 5,
+      size: 2 + Math.random() * 4,
+      color: Math.random() > 0.5 ? "#ffe082" : "#6ee7ff",
+      life: 30
+    });
+  }
+}
+
+function addHitEffect(x, y) {
+  screenShake = 12;
+  hitFlash = 12;
+
+  for (let i = 0; i < 18; i++) {
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 9,
+      vy: (Math.random() - 0.5) * 9,
+      size: 3 + Math.random() * 5,
+      color: Math.random() > 0.5 ? "#ff5a6e" : "#ffffff",
+      life: 35
+    });
+  }
+}
+
+function drawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+
+    ctx.globalAlpha = p.life / 35;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawFloatingTexts() {
+  ctx.font = "bold 24px Courier New";
+
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const t = floatingTexts[i];
+
+    t.y -= 1.2;
+    t.life--;
+
+    ctx.globalAlpha = t.life / 40;
+    ctx.fillStyle = "#ffe082";
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.globalAlpha = 1;
+
+    if (t.life <= 0) floatingTexts.splice(i, 1);
+  }
+}
 
 function resetStars() {
   stars = [];
@@ -135,6 +215,17 @@ function spawnPickup() {
 }
 
 function drawStars() {
+  ctx.save();
+
+  if (screenShake > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake,
+      (Math.random() - 0.5) * screenShake
+    );
+    screenShake *= 0.85;
+    if (screenShake < 0.5) screenShake = 0;
+  }
+
   ctx.fillStyle = "#05040b";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -156,6 +247,16 @@ function drawStars() {
   ctx.ellipse(720, 420, 380, 55, -0.25, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  if (hitFlash > 0) {
+    ctx.globalAlpha = hitFlash / 18;
+    ctx.fillStyle = "#ff3355";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    hitFlash--;
+  }
+
+  ctx.restore();
 }
 
 function drawCupShip() {
@@ -324,7 +425,12 @@ function update() {
 
   if (running) {
     score += 0.12 * speed;
-    speed += 0.0008;
+
+    // smoother arcade difficulty ramp
+    speed += 0.00055;
+
+    // occasional calmer moments
+    const calmModifier = Math.sin(frame / 240) * 8;
 
     if (keys.ArrowUp || keys.w) player.y -= 5.2;
     if (keys.ArrowDown || keys.s) player.y += 5.2;
@@ -338,7 +444,7 @@ function update() {
 
     if (spawnTimer <= 0) {
       spawnHazard();
-      spawnTimer = Math.max(36, 92 - speed * 8);
+      spawnTimer = Math.max(34, 92 - speed * 8 + calmModifier);
     }
 
     if (pickupTimer <= 0) {
@@ -356,6 +462,7 @@ function update() {
 
     for (let i = hazards.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, hazards[i])) {
+        addHitEffect(player.x + 40, player.y + 40);
         hazards.splice(i, 1);
         player.health--;
         if (player.health <= 0) endGame();
@@ -365,7 +472,15 @@ function update() {
     for (let i = pickups.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, pickups[i])) {
         const kind = pickups[i].kind;
-        score += kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
+        const value = kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
+
+        addPickupEffect(
+          pickups[i].x,
+          pickups[i].y,
+          value
+        );
+
+        score += value;
         pickups.splice(i, 1);
       }
     }
@@ -377,6 +492,9 @@ function update() {
   for (const h of hazards) drawHazard(h);
 
   if (running) drawCupShip();
+
+  drawParticles();
+  drawFloatingTexts();
 
   drawHUD();
 
