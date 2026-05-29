@@ -57,6 +57,14 @@ let floatingTexts = [];
 let screenShake = 0;
 let hitFlash = 0;
 
+// v0.5 Atmosphere Pack
+let farStars = [];
+let midStars = [];
+let nearStars = [];
+let atmosphereFrame = 0;
+let shootingStars = [];
+let nextShootingStar = 240 + Math.random() * 300;
+
 
 function addPickupEffect(x, y, value) {
   floatingTexts.push({
@@ -134,19 +142,51 @@ function drawFloatingTexts() {
 }
 
 function resetStars() {
-  stars = [];
-  for (let i = 0; i < 120; i++) {
-    stars.push({
+  farStars = [];
+  midStars = [];
+  nearStars = [];
+
+  const farCount = isPortraitMobile() ? 90 : 80;
+  const midCount = isPortraitMobile() ? 70 : 60;
+  const nearCount = isPortraitMobile() ? 36 : 32;
+
+  for (let i = 0; i < farCount; i++) {
+    farStars.push({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      r: Math.random() * 2 + 0.5,
-      s: Math.random() * 1.8 + 0.4
+      r: Math.random() * 1.2 + 0.4,
+      s: Math.random() * 0.35 + 0.12,
+      twinkle: Math.random() * Math.PI * 2
     });
   }
+
+  for (let i = 0; i < midCount; i++) {
+    midStars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.8 + 0.7,
+      s: Math.random() * 0.9 + 0.45,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+
+  for (let i = 0; i < nearCount; i++) {
+    nearStars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2.6 + 1.1,
+      s: Math.random() * 1.5 + 1.0,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Keep this for compatibility with older code.
+  stars = [...farStars, ...midStars, ...nearStars];
 }
 
 function keepPlayerOnScreen() {
-  player.x = Math.max(30, Math.min(canvas.width - 130, player.x));
+  const maxPlayerX = canvas.width * 0.65;
+  player.x = Math.max(30, Math.min(maxPlayerX, player.x));
   player.y = Math.max(40, Math.min(canvas.height - 110, player.y));
 }
 
@@ -214,6 +254,179 @@ function spawnPickup() {
   });
 }
 
+
+function drawLayeredStarField(layer, speedMultiplier, colorA, colorB) {
+  for (const st of layer) {
+    st.x -= st.s * speed * speedMultiplier;
+
+    if (st.x < -8) {
+      st.x = canvas.width + 8;
+      st.y = Math.random() * canvas.height;
+    }
+
+    const twinkle = 0.45 + Math.sin(frame / 24 + st.twinkle) * 0.22;
+    ctx.globalAlpha = Math.max(0.18, twinkle);
+    ctx.fillStyle = st.r > 1.6 ? colorA : colorB;
+    ctx.fillRect(st.x, st.y, st.r, st.r);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawNebulaClouds() {
+  const drift = atmosphereFrame * 0.18;
+
+  ctx.globalAlpha = 0.10;
+  ctx.fillStyle = "#7b46b4";
+  ctx.beginPath();
+  ctx.ellipse(
+    canvas.width * 0.28 + Math.sin(drift / 90) * 35,
+    canvas.height * 0.24,
+    canvas.width * 0.32,
+    canvas.height * 0.10,
+    -0.18,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.globalAlpha = 0.075;
+  ctx.fillStyle = "#1ba7d8";
+  ctx.beginPath();
+  ctx.ellipse(
+    canvas.width * 0.78 + Math.cos(drift / 110) * 40,
+    canvas.height * 0.62,
+    canvas.width * 0.36,
+    canvas.height * 0.13,
+    0.18,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSwampPlanet() {
+  const px = canvas.width * 0.82;
+  const py = canvas.height * 0.28;
+  const radius = isPortraitMobile() ? 78 : 92;
+
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = "#233b2a";
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = "#8fb45a";
+  ctx.beginPath();
+  ctx.arc(px - radius * 0.25, py - radius * 0.12, radius * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.26;
+  ctx.strokeStyle = "#d8b16a";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(px, py, radius + 20, radius * 0.34, -0.18, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawDistantMoon() {
+  const mx = canvas.width * 0.30;
+  const my = canvas.height * 0.16;
+  const mr = isPortraitMobile() ? 22 : 28;
+
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = "#d8d2c2";
+  ctx.beginPath();
+  ctx.arc(mx, my, mr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = "#6f6b62";
+  ctx.beginPath();
+  ctx.arc(mx - 8, my - 5, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(mx + 7, my + 9, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSaturnBeanConstellation() {
+  const startX = isPortraitMobile() ? 68 : 110;
+  const startY = isPortraitMobile() ? 115 : 92;
+  const points = [
+    [0, 12], [18, 0], [36, 18], [58, 8], [78, 24]
+  ];
+
+  ctx.globalAlpha = 0.42;
+  ctx.strokeStyle = "#d8b16a";
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = startX + p[0];
+    const y = startY + p[1];
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffe8b0";
+  for (const p of points) {
+    ctx.fillRect(startX + p[0], startY + p[1], 3, 3);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function maybeSpawnShootingStar() {
+  nextShootingStar--;
+
+  if (nextShootingStar <= 0) {
+    shootingStars.push({
+      x: canvas.width + 30,
+      y: 60 + Math.random() * (canvas.height * 0.55),
+      vx: -7 - Math.random() * 4,
+      vy: 2 + Math.random() * 2,
+      life: 50
+    });
+
+    nextShootingStar = 320 + Math.random() * 480;
+  }
+}
+
+function drawShootingStars() {
+  maybeSpawnShootingStar();
+
+  for (let i = shootingStars.length - 1; i >= 0; i--) {
+    const s = shootingStars[i];
+    s.x += s.vx;
+    s.y += s.vy;
+    s.life--;
+
+    ctx.globalAlpha = Math.max(0, s.life / 50);
+    ctx.strokeStyle = "#ffe8b0";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x - s.vx * 4, s.y - s.vy * 4);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(s.x, s.y, 3, 3);
+    ctx.globalAlpha = 1;
+
+    if (s.life <= 0 || s.x < -80 || s.y > canvas.height + 80) {
+      shootingStars.splice(i, 1);
+    }
+  }
+}
+
 function drawStars() {
   ctx.save();
 
@@ -226,27 +439,21 @@ function drawStars() {
     if (screenShake < 0.5) screenShake = 0;
   }
 
+  atmosphereFrame++;
+
   ctx.fillStyle = "#05040b";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const st of stars) {
-    st.x -= st.s * speed * 0.35;
-    if (st.x < -5) {
-      st.x = canvas.width + 5;
-      st.y = Math.random() * canvas.height;
-    }
-    ctx.fillStyle = st.r > 1.6 ? "#ffe8b0" : "#b6e7ff";
-    ctx.globalAlpha = 0.45 + Math.random() * 0.45;
-    ctx.fillRect(st.x, st.y, st.r, st.r);
-    ctx.globalAlpha = 1;
-  }
+  drawNebulaClouds();
+  drawDistantMoon();
+  drawSwampPlanet();
 
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = "#7b46b4";
-  ctx.beginPath();
-  ctx.ellipse(720, 420, 380, 55, -0.25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  drawLayeredStarField(farStars, 0.16, "#f7ead0", "#7ebcff");
+  drawLayeredStarField(midStars, 0.32, "#ffe8b0", "#b6e7ff");
+  drawLayeredStarField(nearStars, 0.56, "#ffffff", "#d8b16a");
+
+  drawSaturnBeanConstellation();
+  drawShootingStars();
 
   if (hitFlash > 0) {
     ctx.globalAlpha = hitFlash / 18;
@@ -263,6 +470,18 @@ function drawCupShip() {
   const bob = Math.sin(frame / 14) * 3;
   const x = player.x;
   const y = player.y + bob;
+
+  // soft pulsing engine glow
+  ctx.save();
+  const glowPulse = 0.75 + Math.sin(frame / 8) * 0.25;
+  const glow = ctx.createRadialGradient(x + 2, y + 42, 2, x + 2, y + 42, 34);
+  glow.addColorStop(0, `rgba(46, 216, 255, ${0.45 * glowPulse})`);
+  glow.addColorStop(1, "rgba(46, 216, 255, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 42, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   // steam trail
   for (let i = 0; i < 5; i++) {
@@ -320,6 +539,19 @@ function drawCupShip() {
   ctx.fillRect(x + 37, y + 4, 13, 11);
   ctx.fillStyle = "#05040b";
   ctx.fillRect(x + 41, y + 7, 5, 4);
+
+  // tiny blinking antenna
+  ctx.strokeStyle = "#7efc9a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 58, y + 3);
+  ctx.lineTo(x + 66, y - 8);
+  ctx.stroke();
+
+  ctx.fillStyle = frame % 44 < 22 ? "#7efc9a" : "#2ed8ff";
+  ctx.beginPath();
+  ctx.arc(x + 67, y - 9, 4, 0, Math.PI * 2);
+  ctx.fill();
 
   // saturn logo approximation
   ctx.strokeStyle = "#b87932";
