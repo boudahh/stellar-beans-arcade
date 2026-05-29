@@ -228,15 +228,30 @@ function rectsHit(a, b) {
 
 function spawnHazard() {
   const size = 34 + Math.random() * 42;
-  const type = Math.random() > 0.72 ? "ufo" : "asteroid";
+  const roll = Math.random();
+
+  let type = "asteroid";
+  if (roll > 0.88) type = "gator";
+  else if (roll > 0.68) type = "ufo";
+
+  if (type === "gator") {
+    floatingTexts.push({
+      x: canvas.width - 210,
+      y: 110,
+      text: "SPACE GATOR!",
+      life: 70
+    });
+  }
+
   hazards.push({
     type,
     x: canvas.width + 80,
     y: 70 + Math.random() * (canvas.height - 150),
-    w: type === "ufo" ? 58 : size,
-    h: type === "ufo" ? 34 : size,
+    w: type === "gator" ? 92 : type === "ufo" ? 58 : size,
+    h: type === "gator" ? 48 : type === "ufo" ? 34 : size,
     spin: Math.random() * Math.PI,
-    speed: speed + Math.random() * 2.1
+    speed: type === "gator" ? speed * 0.85 + 1.0 : speed + Math.random() * 2.1,
+    wobble: Math.random() * Math.PI * 2
   });
 }
 
@@ -597,7 +612,86 @@ function drawPickup(p) {
 }
 
 function drawHazard(h) {
-  if (h.type === "ufo") {
+  if (h.type === "gator") {
+    const gx = h.x;
+    const gy = h.y + Math.sin(frame / 8 + h.wobble) * 2;
+
+    // jetpack flame
+    ctx.fillStyle = "#2ed8ff";
+    ctx.beginPath();
+    ctx.ellipse(gx + h.w + 3, gy + h.h / 2, 14, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ffb347";
+    ctx.beginPath();
+    ctx.ellipse(gx + h.w + 10, gy + h.h / 2, 7, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // gator body
+    ctx.fillStyle = "#375f2b";
+    ctx.strokeStyle = "#162614";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(gx + 8, gy + 13, 66, 24, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // snout
+    ctx.fillStyle = "#4f8a38";
+    ctx.beginPath();
+    ctx.roundRect(gx + 0, gy + 18, 34, 18, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // tail
+    ctx.fillStyle = "#2b4d22";
+    ctx.beginPath();
+    ctx.moveTo(gx + 72, gy + 25);
+    ctx.lineTo(gx + 92, gy + 14);
+    ctx.lineTo(gx + 84, gy + 36);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // helmet bubble
+    ctx.globalAlpha = 0.42;
+    ctx.fillStyle = "#b6e7ff";
+    ctx.beginPath();
+    ctx.arc(gx + 32, gy + 16, 18, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#d9edf7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(gx + 32, gy + 16, 18, Math.PI, Math.PI * 2);
+    ctx.stroke();
+
+    // eye
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(gx + 21, gy + 20, 5, 5);
+    ctx.fillStyle = "#05040b";
+    ctx.fillRect(gx + 23, gy + 21, 2, 3);
+
+    // teeth
+    ctx.fillStyle = "#f7ead0";
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(gx + 8 + i * 7, gy + 35);
+      ctx.lineTo(gx + 11 + i * 7, gy + 41);
+      ctx.lineTo(gx + 14 + i * 7, gy + 35);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // little warning glow
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#7efc9a";
+    ctx.beginPath();
+    ctx.ellipse(gx + 44, gy + 26, 55, 26, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+  } else if (h.type === "ufo") {
     ctx.fillStyle = "#c9d0c7";
     ctx.strokeStyle = "#1b1b24";
     ctx.lineWidth = 3;
@@ -684,7 +778,17 @@ function update() {
       pickupTimer = Math.max(30, 72 - speed * 4);
     }
 
-    for (const h of hazards) h.x -= h.speed;
+    for (const h of hazards) {
+      h.x -= h.speed;
+
+      // Space Gator slowly hunts the player's vertical position.
+      if (h.type === "gator") {
+        const targetY = player.y + player.h / 2;
+        const gatorY = h.y + h.h / 2;
+        h.y += Math.sign(targetY - gatorY) * Math.min(1.2, Math.abs(targetY - gatorY) * 0.018);
+        h.y += Math.sin(frame / 18 + h.wobble) * 0.35;
+      }
+    }
     for (const p of pickups) p.x -= p.speed;
 
     hazards = hazards.filter(h => h.x > -120);
