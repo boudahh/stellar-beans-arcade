@@ -113,13 +113,3 @@ canvas {
     radial-gradient(circle at 80% 70%, rgba(0, 160, 220, .12), transparent 28%),
     #05040b;
 }
-
-
-/* v0.5 atmosphere shell */
-#gameShell {
-  background:
-    radial-gradient(circle at 12% 18%, rgba(216, 177, 106, .10), transparent 20%),
-    radial-gradient(circle at 28% 20%, rgba(123, 70, 180, .24), transparent 32%),
-    radial-gradient(circle at 82% 72%, rgba(0, 180, 220, .16), transparent 30%),
-    #05040b;
-}
