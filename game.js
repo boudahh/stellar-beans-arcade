@@ -57,6 +57,19 @@ let floatingTexts = [];
 let screenShake = 0;
 let hitFlash = 0;
 
+// v0.7a Shield Power-Up
+let shieldPowerups = [];
+let shieldActive = false;
+let shieldTimer = 360;
+
+// v0.5 Atmosphere Pack
+let farStars = [];
+let midStars = [];
+let nearStars = [];
+let atmosphereFrame = 0;
+let shootingStars = [];
+let nextShootingStar = 240 + Math.random() * 300;
+
 
 function addPickupEffect(x, y, value) {
   floatingTexts.push({
@@ -134,19 +147,51 @@ function drawFloatingTexts() {
 }
 
 function resetStars() {
-  stars = [];
-  for (let i = 0; i < 120; i++) {
-    stars.push({
+  farStars = [];
+  midStars = [];
+  nearStars = [];
+
+  const farCount = isPortraitMobile() ? 90 : 80;
+  const midCount = isPortraitMobile() ? 70 : 60;
+  const nearCount = isPortraitMobile() ? 36 : 32;
+
+  for (let i = 0; i < farCount; i++) {
+    farStars.push({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      r: Math.random() * 2 + 0.5,
-      s: Math.random() * 1.8 + 0.4
+      r: Math.random() * 1.2 + 0.4,
+      s: Math.random() * 0.35 + 0.12,
+      twinkle: Math.random() * Math.PI * 2
     });
   }
+
+  for (let i = 0; i < midCount; i++) {
+    midStars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.8 + 0.7,
+      s: Math.random() * 0.9 + 0.45,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+
+  for (let i = 0; i < nearCount; i++) {
+    nearStars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2.6 + 1.1,
+      s: Math.random() * 1.5 + 1.0,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Keep this for compatibility with older code.
+  stars = [...farStars, ...midStars, ...nearStars];
 }
 
 function keepPlayerOnScreen() {
-  player.x = Math.max(30, Math.min(canvas.width - 130, player.x));
+  const maxPlayerX = canvas.width * 0.65;
+  player.x = Math.max(30, Math.min(maxPlayerX, player.x));
   player.y = Math.max(40, Math.min(canvas.height - 110, player.y));
 }
 
@@ -164,11 +209,9 @@ function startGame() {
   pickupTimer = 0;
   hazards = [];
   pickups = [];
-  powerups = [];
+  shieldPowerups = [];
   shieldActive = false;
-  espressoTimer = 0;
-  doubleBeansTimer = 0;
-  powerupTimer = 260;
+  shieldTimer = 360;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -193,15 +236,30 @@ function rectsHit(a, b) {
 
 function spawnHazard() {
   const size = 34 + Math.random() * 42;
-  const type = Math.random() > 0.72 ? "ufo" : "asteroid";
+  const roll = Math.random();
+
+  let type = "asteroid";
+  if (roll > 0.88) type = "gator";
+  else if (roll > 0.68) type = "ufo";
+
+  if (type === "gator") {
+    floatingTexts.push({
+      x: canvas.width - 210,
+      y: 110,
+      text: "SPACE GATOR!",
+      life: 70
+    });
+  }
+
   hazards.push({
     type,
     x: canvas.width + 80,
     y: 70 + Math.random() * (canvas.height - 150),
-    w: type === "ufo" ? 58 : size,
-    h: type === "ufo" ? 34 : size,
+    w: type === "gator" ? 92 : type === "ufo" ? 58 : size,
+    h: type === "gator" ? 48 : type === "ufo" ? 34 : size,
     spin: Math.random() * Math.PI,
-    speed: speed + Math.random() * 2.1
+    speed: type === "gator" ? speed * 0.85 + 1.0 : speed + Math.random() * 2.1,
+    wobble: Math.random() * Math.PI * 2
   });
 }
 
@@ -219,19 +277,188 @@ function spawnPickup() {
   });
 }
 
-function spawnPowerup() {
-  const roll = Math.random();
-  const kind = roll > 0.66 ? "shield" : roll > 0.33 ? "espresso" : "double";
-
-  powerups.push({
-    kind,
+function spawnShieldPowerup() {
+  shieldPowerups.push({
     x: canvas.width + 70,
     y: 90 + Math.random() * (canvas.height - 190),
     w: 38,
     h: 38,
-    speed: speed + 0.75,
+    speed: speed + 0.7,
     pulse: Math.random() * Math.PI * 2
   });
+}
+
+
+function drawLayeredStarField(layer, speedMultiplier, colorA, colorB) {
+  for (const st of layer) {
+    st.x -= st.s * speed * speedMultiplier;
+
+    if (st.x < -8) {
+      st.x = canvas.width + 8;
+      st.y = Math.random() * canvas.height;
+    }
+
+    const twinkle = 0.45 + Math.sin(frame / 24 + st.twinkle) * 0.22;
+    ctx.globalAlpha = Math.max(0.18, twinkle);
+    ctx.fillStyle = st.r > 1.6 ? colorA : colorB;
+    ctx.fillRect(st.x, st.y, st.r, st.r);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawNebulaClouds() {
+  const drift = atmosphereFrame * 0.18;
+
+  ctx.globalAlpha = 0.10;
+  ctx.fillStyle = "#7b46b4";
+  ctx.beginPath();
+  ctx.ellipse(
+    canvas.width * 0.28 + Math.sin(drift / 90) * 35,
+    canvas.height * 0.24,
+    canvas.width * 0.32,
+    canvas.height * 0.10,
+    -0.18,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.globalAlpha = 0.075;
+  ctx.fillStyle = "#1ba7d8";
+  ctx.beginPath();
+  ctx.ellipse(
+    canvas.width * 0.78 + Math.cos(drift / 110) * 40,
+    canvas.height * 0.62,
+    canvas.width * 0.36,
+    canvas.height * 0.13,
+    0.18,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSwampPlanet() {
+  const px = canvas.width * 0.82;
+  const py = canvas.height * 0.28;
+  const radius = isPortraitMobile() ? 78 : 92;
+
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = "#233b2a";
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = "#8fb45a";
+  ctx.beginPath();
+  ctx.arc(px - radius * 0.25, py - radius * 0.12, radius * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.26;
+  ctx.strokeStyle = "#d8b16a";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(px, py, radius + 20, radius * 0.34, -0.18, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawDistantMoon() {
+  const mx = canvas.width * 0.30;
+  const my = canvas.height * 0.16;
+  const mr = isPortraitMobile() ? 22 : 28;
+
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = "#d8d2c2";
+  ctx.beginPath();
+  ctx.arc(mx, my, mr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = "#6f6b62";
+  ctx.beginPath();
+  ctx.arc(mx - 8, my - 5, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(mx + 7, my + 9, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSaturnBeanConstellation() {
+  const startX = isPortraitMobile() ? 68 : 110;
+  const startY = isPortraitMobile() ? 115 : 92;
+  const points = [
+    [0, 12], [18, 0], [36, 18], [58, 8], [78, 24]
+  ];
+
+  ctx.globalAlpha = 0.42;
+  ctx.strokeStyle = "#d8b16a";
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = startX + p[0];
+    const y = startY + p[1];
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffe8b0";
+  for (const p of points) {
+    ctx.fillRect(startX + p[0], startY + p[1], 3, 3);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function maybeSpawnShootingStar() {
+  nextShootingStar--;
+
+  if (nextShootingStar <= 0) {
+    shootingStars.push({
+      x: canvas.width + 30,
+      y: 60 + Math.random() * (canvas.height * 0.55),
+      vx: -7 - Math.random() * 4,
+      vy: 2 + Math.random() * 2,
+      life: 50
+    });
+
+    nextShootingStar = 320 + Math.random() * 480;
+  }
+}
+
+function drawShootingStars() {
+  maybeSpawnShootingStar();
+
+  for (let i = shootingStars.length - 1; i >= 0; i--) {
+    const s = shootingStars[i];
+    s.x += s.vx;
+    s.y += s.vy;
+    s.life--;
+
+    ctx.globalAlpha = Math.max(0, s.life / 50);
+    ctx.strokeStyle = "#ffe8b0";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x - s.vx * 4, s.y - s.vy * 4);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(s.x, s.y, 3, 3);
+    ctx.globalAlpha = 1;
+
+    if (s.life <= 0 || s.x < -80 || s.y > canvas.height + 80) {
+      shootingStars.splice(i, 1);
+    }
+  }
 }
 
 function drawStars() {
@@ -246,27 +473,21 @@ function drawStars() {
     if (screenShake < 0.5) screenShake = 0;
   }
 
+  atmosphereFrame++;
+
   ctx.fillStyle = "#05040b";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const st of stars) {
-    st.x -= st.s * speed * 0.35;
-    if (st.x < -5) {
-      st.x = canvas.width + 5;
-      st.y = Math.random() * canvas.height;
-    }
-    ctx.fillStyle = st.r > 1.6 ? "#ffe8b0" : "#b6e7ff";
-    ctx.globalAlpha = 0.45 + Math.random() * 0.45;
-    ctx.fillRect(st.x, st.y, st.r, st.r);
-    ctx.globalAlpha = 1;
-  }
+  drawNebulaClouds();
+  drawDistantMoon();
+  drawSwampPlanet();
 
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = "#7b46b4";
-  ctx.beginPath();
-  ctx.ellipse(720, 420, 380, 55, -0.25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  drawLayeredStarField(farStars, 0.16, "#f7ead0", "#7ebcff");
+  drawLayeredStarField(midStars, 0.32, "#ffe8b0", "#b6e7ff");
+  drawLayeredStarField(nearStars, 0.56, "#ffffff", "#d8b16a");
+
+  drawSaturnBeanConstellation();
+  drawShootingStars();
 
   if (hitFlash > 0) {
     ctx.globalAlpha = hitFlash / 18;
@@ -283,6 +504,18 @@ function drawCupShip() {
   const bob = Math.sin(frame / 14) * 3;
   const x = player.x;
   const y = player.y + bob;
+
+  // soft pulsing engine glow
+  ctx.save();
+  const glowPulse = 0.75 + Math.sin(frame / 8) * 0.25;
+  const glow = ctx.createRadialGradient(x + 2, y + 42, 2, x + 2, y + 42, 34);
+  glow.addColorStop(0, `rgba(46, 216, 255, ${0.45 * glowPulse})`);
+  glow.addColorStop(1, "rgba(46, 216, 255, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 42, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   // steam trail
   for (let i = 0; i < 5; i++) {
@@ -341,6 +574,19 @@ function drawCupShip() {
   ctx.fillStyle = "#05040b";
   ctx.fillRect(x + 41, y + 7, 5, 4);
 
+  // tiny blinking antenna
+  ctx.strokeStyle = "#7efc9a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 58, y + 3);
+  ctx.lineTo(x + 66, y - 8);
+  ctx.stroke();
+
+  ctx.fillStyle = frame % 44 < 22 ? "#7efc9a" : "#2ed8ff";
+  ctx.beginPath();
+  ctx.arc(x + 67, y - 9, 4, 0, Math.PI * 2);
+  ctx.fill();
+
   // saturn logo approximation
   ctx.strokeStyle = "#b87932";
   ctx.lineWidth = 3;
@@ -384,7 +630,7 @@ function drawPickup(p) {
   }
 }
 
-function drawPowerup(p) {
+function drawShieldPowerup(p) {
   const cx = p.x + p.w / 2;
   const cy = p.y + p.h / 2;
   const pulse = 1 + Math.sin(frame / 8 + p.pulse) * 0.08;
@@ -393,68 +639,109 @@ function drawPowerup(p) {
   ctx.translate(cx, cy);
   ctx.scale(pulse, pulse);
 
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = p.kind === "shield" ? "#6ee7ff" : p.kind === "espresso" ? "#d8b16a" : "#7efc9a";
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = "#6ee7ff";
   ctx.beginPath();
   ctx.arc(0, 0, 25, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  if (p.kind === "shield") {
-    ctx.strokeStyle = "#6ee7ff";
-    ctx.fillStyle = "#102436";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(0, 0, 17, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+  ctx.strokeStyle = "#6ee7ff";
+  ctx.fillStyle = "#102436";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, 17, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
 
-    ctx.fillStyle = "#d9edf7";
-    ctx.font = "bold 18px Courier New";
-    ctx.fillText("S", -6, 7);
-  }
-
-  if (p.kind === "espresso") {
-    ctx.fillStyle = "#f7ead0";
-    ctx.strokeStyle = "#3a2116";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(-12, -13, 24, 25, 5);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#3a2116";
-    ctx.fillRect(-8, -8, 16, 6);
-
-    ctx.strokeStyle = "#d8b16a";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-6, -18);
-    ctx.lineTo(-6, -24);
-    ctx.moveTo(2, -18);
-    ctx.lineTo(2, -26);
-    ctx.stroke();
-  }
-
-  if (p.kind === "double") {
-    ctx.fillStyle = "#7efc9a";
-    ctx.strokeStyle = "#143a24";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(-17, -15, 34, 30, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#05040b";
-    ctx.font = "bold 18px Courier New";
-    ctx.fillText("2X", -12, 7);
-  }
+  ctx.fillStyle = "#d9edf7";
+  ctx.font = "bold 18px Courier New";
+  ctx.fillText("S", -6, 7);
 
   ctx.restore();
 }
 
 function drawHazard(h) {
-  if (h.type === "ufo") {
+  if (h.type === "gator") {
+    const gx = h.x;
+    const gy = h.y + Math.sin(frame / 8 + h.wobble) * 2;
+
+    // jetpack flame
+    ctx.fillStyle = "#2ed8ff";
+    ctx.beginPath();
+    ctx.ellipse(gx + h.w + 3, gy + h.h / 2, 14, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ffb347";
+    ctx.beginPath();
+    ctx.ellipse(gx + h.w + 10, gy + h.h / 2, 7, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // gator body
+    ctx.fillStyle = "#375f2b";
+    ctx.strokeStyle = "#162614";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(gx + 8, gy + 13, 66, 24, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // snout
+    ctx.fillStyle = "#4f8a38";
+    ctx.beginPath();
+    ctx.roundRect(gx + 0, gy + 18, 34, 18, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // tail
+    ctx.fillStyle = "#2b4d22";
+    ctx.beginPath();
+    ctx.moveTo(gx + 72, gy + 25);
+    ctx.lineTo(gx + 92, gy + 14);
+    ctx.lineTo(gx + 84, gy + 36);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // helmet bubble
+    ctx.globalAlpha = 0.42;
+    ctx.fillStyle = "#b6e7ff";
+    ctx.beginPath();
+    ctx.arc(gx + 32, gy + 16, 18, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#d9edf7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(gx + 32, gy + 16, 18, Math.PI, Math.PI * 2);
+    ctx.stroke();
+
+    // eye
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(gx + 21, gy + 20, 5, 5);
+    ctx.fillStyle = "#05040b";
+    ctx.fillRect(gx + 23, gy + 21, 2, 3);
+
+    // teeth
+    ctx.fillStyle = "#f7ead0";
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(gx + 8 + i * 7, gy + 35);
+      ctx.lineTo(gx + 11 + i * 7, gy + 41);
+      ctx.lineTo(gx + 14 + i * 7, gy + 35);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // little warning glow
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#7efc9a";
+    ctx.beginPath();
+    ctx.ellipse(gx + 44, gy + 26, 55, 26, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+  } else if (h.type === "ufo") {
     ctx.fillStyle = "#c9d0c7";
     ctx.strokeStyle = "#1b1b24";
     ctx.lineWidth = 3;
@@ -508,24 +795,10 @@ function drawHUD() {
   ctx.font = "16px Courier New";
   ctx.fillText("HEALTH", healthX, 64);
 
-  let statusY = 112;
-  ctx.font = "bold 16px Courier New";
-
   if (shieldActive) {
     ctx.fillStyle = "#6ee7ff";
-    ctx.fillText("SHIELD ON", 35, statusY);
-    statusY += 22;
-  }
-
-  if (espressoTimer > 0) {
-    ctx.fillStyle = "#d8b16a";
-    ctx.fillText("ESPRESSO " + Math.ceil(espressoTimer / 60) + "s", 35, statusY);
-    statusY += 22;
-  }
-
-  if (doubleBeansTimer > 0) {
-    ctx.fillStyle = "#7efc9a";
-    ctx.fillText("2X BEANS " + Math.ceil(doubleBeansTimer / 60) + "s", 35, statusY);
+    ctx.font = "bold 16px Courier New";
+    ctx.fillText("SHIELD ON", 35, 112);
   }
 }
 
@@ -533,16 +806,13 @@ function update() {
   frame++;
 
   if (running) {
-    score += (espressoTimer > 0 ? 0.20 : 0.12) * speed;
+    score += 0.12 * speed;
 
     // smoother arcade difficulty ramp
     speed += 0.00055;
 
     // occasional calmer moments
     const calmModifier = Math.sin(frame / 240) * 8;
-
-    if (espressoTimer > 0) espressoTimer--;
-    if (doubleBeansTimer > 0) doubleBeansTimer--;
 
     if (keys.ArrowUp || keys.w) player.y -= 5.2;
     if (keys.ArrowDown || keys.s) player.y += 5.2;
@@ -553,7 +823,7 @@ function update() {
 
     spawnTimer--;
     pickupTimer--;
-    powerupTimer--;
+    shieldTimer--;
 
     if (spawnTimer <= 0) {
       spawnHazard();
@@ -565,18 +835,28 @@ function update() {
       pickupTimer = Math.max(30, 72 - speed * 4);
     }
 
-    if (powerupTimer <= 0) {
-      spawnPowerup();
-      powerupTimer = 420 + Math.random() * 360;
+    if (shieldTimer <= 0) {
+      spawnShieldPowerup();
+      shieldTimer = 520 + Math.random() * 420;
     }
 
-    for (const h of hazards) h.x -= h.speed;
+    for (const h of hazards) {
+      h.x -= h.speed;
+
+      // Space Gator slowly hunts the player's vertical position.
+      if (h.type === "gator") {
+        const targetY = player.y + player.h / 2;
+        const gatorY = h.y + h.h / 2;
+        h.y += Math.sign(targetY - gatorY) * Math.min(1.2, Math.abs(targetY - gatorY) * 0.018);
+        h.y += Math.sin(frame / 18 + h.wobble) * 0.35;
+      }
+    }
     for (const p of pickups) p.x -= p.speed;
-    for (const p of powerups) p.x -= p.speed;
+    for (const s of shieldPowerups) s.x -= s.speed;
 
     hazards = hazards.filter(h => h.x > -120);
     pickups = pickups.filter(p => p.x > -80);
-    powerups = powerups.filter(p => p.x > -80);
+    shieldPowerups = shieldPowerups.filter(s => s.x > -80);
 
     const hitBox = { x: player.x + 12, y: player.y + 12, w: player.w - 20, h: player.h - 12 };
 
@@ -603,8 +883,7 @@ function update() {
     for (let i = pickups.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, pickups[i])) {
         const kind = pickups[i].kind;
-        const baseValue = kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
-        const value = doubleBeansTimer > 0 ? baseValue * 2 : baseValue;
+        const value = kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
 
         addPickupEffect(
           pickups[i].x,
@@ -617,27 +896,17 @@ function update() {
       }
     }
 
-    for (let i = powerups.length - 1; i >= 0; i--) {
-      if (rectsHit(hitBox, powerups[i])) {
-        const kind = powerups[i].kind;
-
-        if (kind === "shield") {
-          shieldActive = true;
-          floatingTexts.push({ x: powerups[i].x, y: powerups[i].y, text: "SHIELD", life: 55 });
-        }
-
-        if (kind === "espresso") {
-          espressoTimer = 360;
-          floatingTexts.push({ x: powerups[i].x, y: powerups[i].y, text: "ESPRESSO!", life: 55 });
-        }
-
-        if (kind === "double") {
-          doubleBeansTimer = 480;
-          floatingTexts.push({ x: powerups[i].x, y: powerups[i].y, text: "2X BEANS!", life: 55 });
-        }
-
-        addPickupEffect(powerups[i].x, powerups[i].y, 0);
-        powerups.splice(i, 1);
+    for (let i = shieldPowerups.length - 1; i >= 0; i--) {
+      if (rectsHit(hitBox, shieldPowerups[i])) {
+        shieldActive = true;
+        floatingTexts.push({
+          x: shieldPowerups[i].x,
+          y: shieldPowerups[i].y,
+          text: "SHIELD",
+          life: 55
+        });
+        addPickupEffect(shieldPowerups[i].x, shieldPowerups[i].y, 0);
+        shieldPowerups.splice(i, 1);
       }
     }
   }
@@ -645,7 +914,7 @@ function update() {
   drawStars();
 
   for (const p of pickups) drawPickup(p);
-  for (const p of powerups) drawPowerup(p);
+  for (const s of shieldPowerups) drawShieldPowerup(s);
   for (const h of hazards) drawHazard(h);
 
   if (running) {
