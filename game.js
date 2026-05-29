@@ -57,11 +57,6 @@ let floatingTexts = [];
 let screenShake = 0;
 let hitFlash = 0;
 
-// v0.7a Shield Power-Up
-let shieldPowerups = [];
-let shieldActive = false;
-let shieldTimer = 360;
-
 // v0.5 Atmosphere Pack
 let farStars = [];
 let midStars = [];
@@ -209,9 +204,6 @@ function startGame() {
   pickupTimer = 0;
   hazards = [];
   pickups = [];
-  shieldPowerups = [];
-  shieldActive = false;
-  shieldTimer = 360;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -274,17 +266,6 @@ function spawnPickup() {
     h: kind === "saturn" ? 36 : 28,
     speed: speed + 1.1,
     pulse: Math.random() * 10
-  });
-}
-
-function spawnShieldPowerup() {
-  shieldPowerups.push({
-    x: canvas.width + 70,
-    y: 90 + Math.random() * (canvas.height - 190),
-    w: 38,
-    h: 38,
-    speed: speed + 0.7,
-    pulse: Math.random() * Math.PI * 2
   });
 }
 
@@ -630,37 +611,6 @@ function drawPickup(p) {
   }
 }
 
-function drawShieldPowerup(p) {
-  const cx = p.x + p.w / 2;
-  const cy = p.y + p.h / 2;
-  const pulse = 1 + Math.sin(frame / 8 + p.pulse) * 0.08;
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(pulse, pulse);
-
-  ctx.globalAlpha = 0.30;
-  ctx.fillStyle = "#6ee7ff";
-  ctx.beginPath();
-  ctx.arc(0, 0, 25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  ctx.strokeStyle = "#6ee7ff";
-  ctx.fillStyle = "#102436";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(0, 0, 17, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "#d9edf7";
-  ctx.font = "bold 18px Courier New";
-  ctx.fillText("S", -6, 7);
-
-  ctx.restore();
-}
-
 function drawHazard(h) {
   if (h.type === "gator") {
     const gx = h.x;
@@ -794,12 +744,6 @@ function drawHUD() {
   ctx.fillStyle = "#f7ead0";
   ctx.font = "16px Courier New";
   ctx.fillText("HEALTH", healthX, 64);
-
-  if (shieldActive) {
-    ctx.fillStyle = "#6ee7ff";
-    ctx.font = "bold 16px Courier New";
-    ctx.fillText("SHIELD ON", 35, 112);
-  }
 }
 
 function update() {
@@ -823,7 +767,6 @@ function update() {
 
     spawnTimer--;
     pickupTimer--;
-    shieldTimer--;
 
     if (spawnTimer <= 0) {
       spawnHazard();
@@ -833,11 +776,6 @@ function update() {
     if (pickupTimer <= 0) {
       spawnPickup();
       pickupTimer = Math.max(30, 72 - speed * 4);
-    }
-
-    if (shieldTimer <= 0) {
-      spawnShieldPowerup();
-      shieldTimer = 520 + Math.random() * 420;
     }
 
     for (const h of hazards) {
@@ -852,11 +790,9 @@ function update() {
       }
     }
     for (const p of pickups) p.x -= p.speed;
-    for (const s of shieldPowerups) s.x -= s.speed;
 
     hazards = hazards.filter(h => h.x > -120);
     pickups = pickups.filter(p => p.x > -80);
-    shieldPowerups = shieldPowerups.filter(s => s.x > -80);
 
     const hitBox = { x: player.x + 12, y: player.y + 12, w: player.w - 20, h: player.h - 12 };
 
@@ -864,19 +800,8 @@ function update() {
       if (rectsHit(hitBox, hazards[i])) {
         addHitEffect(player.x + 40, player.y + 40);
         hazards.splice(i, 1);
-
-        if (shieldActive) {
-          shieldActive = false;
-          floatingTexts.push({
-            x: player.x + 20,
-            y: player.y - 10,
-            text: "SHIELD!",
-            life: 50
-          });
-        } else {
-          player.health--;
-          if (player.health <= 0) endGame();
-        }
+        player.health--;
+        if (player.health <= 0) endGame();
       }
     }
 
@@ -895,41 +820,14 @@ function update() {
         pickups.splice(i, 1);
       }
     }
-
-    for (let i = shieldPowerups.length - 1; i >= 0; i--) {
-      if (rectsHit(hitBox, shieldPowerups[i])) {
-        shieldActive = true;
-        floatingTexts.push({
-          x: shieldPowerups[i].x,
-          y: shieldPowerups[i].y,
-          text: "SHIELD",
-          life: 55
-        });
-        addPickupEffect(shieldPowerups[i].x, shieldPowerups[i].y, 0);
-        shieldPowerups.splice(i, 1);
-      }
-    }
   }
 
   drawStars();
 
   for (const p of pickups) drawPickup(p);
-  for (const s of shieldPowerups) drawShieldPowerup(s);
   for (const h of hazards) drawHazard(h);
 
-  if (running) {
-    drawCupShip();
-
-    if (shieldActive) {
-      ctx.globalAlpha = 0.32 + Math.sin(frame / 7) * 0.08;
-      ctx.strokeStyle = "#6ee7ff";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.ellipse(player.x + 45, player.y + 40, 62, 42, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-  }
+  if (running) drawCupShip();
 
   drawParticles();
   drawFloatingTexts();
