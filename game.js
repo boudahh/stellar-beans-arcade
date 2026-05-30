@@ -60,6 +60,7 @@ let hitFlash = 0;
 // v0.7 test patch - visual shield icon only
 let testShieldIcons = [];
 let testShieldTimer = 180;
+let shieldActive = false;
 
 // v0.5 Atmosphere Pack
 let farStars = [];
@@ -210,6 +211,7 @@ function startGame() {
   pickups = [];
   testShieldIcons = [];
   testShieldTimer = 180;
+  shieldActive = false;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -792,6 +794,12 @@ function drawHUD() {
   ctx.fillStyle = "#f7ead0";
   ctx.font = "16px Courier New";
   ctx.fillText("HEALTH", healthX, 64);
+
+  if (shieldActive) {
+    ctx.fillStyle = "#6ee7ff";
+    ctx.font = "bold 16px Courier New";
+    ctx.fillText("SHIELD ACTIVE", 35, 112);
+  }
 }
 
 function update() {
@@ -858,8 +866,20 @@ function update() {
       if (rectsHit(hitBox, hazards[i])) {
         addHitEffect(player.x + 40, player.y + 40);
         hazards.splice(i, 1);
-        player.health--;
-        if (player.health <= 0) endGame();
+
+        if (shieldActive) {
+          shieldActive = false;
+
+          floatingTexts.push({
+            x: player.x + 20,
+            y: player.y - 10,
+            text: "SHIELD!",
+            life: 50
+          });
+        } else {
+          player.health--;
+          if (player.health <= 0) endGame();
+        }
       }
     }
 
@@ -878,6 +898,23 @@ function update() {
         pickups.splice(i, 1);
       }
     }
+
+    // v0.7b: collect shield icon
+    for (let i = testShieldIcons.length - 1; i >= 0; i--) {
+      if (rectsHit(hitBox, testShieldIcons[i])) {
+        shieldActive = true;
+
+        floatingTexts.push({
+          x: testShieldIcons[i].x,
+          y: testShieldIcons[i].y,
+          text: "SHIELD",
+          life: 55
+        });
+
+        addPickupEffect(testShieldIcons[i].x, testShieldIcons[i].y, 0);
+        testShieldIcons.splice(i, 1);
+      }
+    }
   }
 
   drawStars();
@@ -886,7 +923,19 @@ function update() {
   for (const s of testShieldIcons) drawTestShieldIcon(s);
   for (const h of hazards) drawHazard(h);
 
-  if (running) drawCupShip();
+  if (running) {
+    drawCupShip();
+
+    if (shieldActive) {
+      ctx.globalAlpha = 0.32 + Math.sin(frame / 7) * 0.08;
+      ctx.strokeStyle = "#6ee7ff";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(player.x + 45, player.y + 40, 62, 42, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
 
   drawParticles();
   drawFloatingTexts();
