@@ -57,6 +57,10 @@ let floatingTexts = [];
 let screenShake = 0;
 let hitFlash = 0;
 
+// v0.7 test patch - visual shield icon only
+let testShieldIcons = [];
+let testShieldTimer = 180;
+
 // v0.5 Atmosphere Pack
 let farStars = [];
 let midStars = [];
@@ -204,6 +208,8 @@ function startGame() {
   pickupTimer = 0;
   hazards = [];
   pickups = [];
+  testShieldIcons = [];
+  testShieldTimer = 180;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -266,6 +272,17 @@ function spawnPickup() {
     h: kind === "saturn" ? 36 : 28,
     speed: speed + 1.1,
     pulse: Math.random() * 10
+  });
+}
+
+function spawnTestShieldIcon() {
+  testShieldIcons.push({
+    x: canvas.width + 60,
+    y: 90 + Math.random() * (canvas.height - 190),
+    w: 38,
+    h: 38,
+    speed: speed + 0.65,
+    pulse: Math.random() * Math.PI * 2
   });
 }
 
@@ -611,6 +628,37 @@ function drawPickup(p) {
   }
 }
 
+function drawTestShieldIcon(p) {
+  const cx = p.x + p.w / 2;
+  const cy = p.y + p.h / 2;
+  const pulse = 1 + Math.sin(frame / 8 + p.pulse) * 0.08;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(pulse, pulse);
+
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = "#6ee7ff";
+  ctx.beginPath();
+  ctx.arc(0, 0, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = "#6ee7ff";
+  ctx.fillStyle = "#102436";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, 17, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#d9edf7";
+  ctx.font = "bold 18px Courier New";
+  ctx.fillText("S", -6, 7);
+
+  ctx.restore();
+}
+
 function drawHazard(h) {
   if (h.type === "gator") {
     const gx = h.x;
@@ -767,6 +815,7 @@ function update() {
 
     spawnTimer--;
     pickupTimer--;
+    testShieldTimer--;
 
     if (spawnTimer <= 0) {
       spawnHazard();
@@ -776,6 +825,13 @@ function update() {
     if (pickupTimer <= 0) {
       spawnPickup();
       pickupTimer = Math.max(30, 72 - speed * 4);
+    }
+
+    // Visual test only: shield icon spawns occasionally.
+    // It does not affect collision or gameplay yet.
+    if (testShieldTimer <= 0) {
+      spawnTestShieldIcon();
+      testShieldTimer = 360 + Math.random() * 260;
     }
 
     for (const h of hazards) {
@@ -790,9 +846,11 @@ function update() {
       }
     }
     for (const p of pickups) p.x -= p.speed;
+    for (const s of testShieldIcons) s.x -= s.speed;
 
     hazards = hazards.filter(h => h.x > -120);
     pickups = pickups.filter(p => p.x > -80);
+    testShieldIcons = testShieldIcons.filter(s => s.x > -80);
 
     const hitBox = { x: player.x + 12, y: player.y + 12, w: player.w - 20, h: player.h - 12 };
 
@@ -825,6 +883,7 @@ function update() {
   drawStars();
 
   for (const p of pickups) drawPickup(p);
+  for (const s of testShieldIcons) drawTestShieldIcon(s);
   for (const h of hazards) drawHazard(h);
 
   if (running) drawCupShip();
