@@ -61,6 +61,9 @@ let hitFlash = 0;
 let testShieldIcons = [];
 let testShieldTimer = 180;
 let shieldActive = false;
+let espressoIcons = [];
+let espressoTimer = 0;
+let espressoSpawnTimer = 300;
 
 // v0.5 Atmosphere Pack
 let farStars = [];
@@ -212,6 +215,9 @@ function startGame() {
   testShieldIcons = [];
   testShieldTimer = 180;
   shieldActive = false;
+  espressoIcons = [];
+  espressoTimer = 0;
+  espressoSpawnTimer = 300;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -630,6 +636,33 @@ function drawPickup(p) {
   }
 }
 
+function spawnEspressoIcon() {
+  espressoIcons.push({
+    x: canvas.width + 60,
+    y: 90 + Math.random() * (canvas.height - 190),
+    w: 36,
+    h: 36,
+    speed: speed + 0.7,
+    pulse: Math.random() * Math.PI * 2
+  });
+}
+
+function drawEspressoIcon(p) {
+  const cx = p.x + p.w/2;
+  const cy = p.y + p.h/2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle="#f7ead0";
+  ctx.strokeStyle="#3a2116";
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.roundRect(-12,-12,24,24,5);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle="#3a2116";
+  ctx.fillRect(-8,-8,16,6);
+  ctx.restore();
+}
+
 function drawTestShieldIcon(p) {
   const cx = p.x + p.w / 2;
   const cy = p.y + p.h / 2;
@@ -800,13 +833,18 @@ function drawHUD() {
     ctx.font = "bold 16px Courier New";
     ctx.fillText("SHIELD ACTIVE", 35, 112);
   }
+
+  if (espressoTimer > 0) {
+    ctx.fillStyle = "#d8b16a";
+    ctx.fillText("ESPRESSO BOOST", 35, 134);
+  }
 }
 
 function update() {
   frame++;
 
   if (running) {
-    score += 0.12 * speed;
+    score += (espressoTimer > 0 ? 0.22 : 0.12) * speed;
 
     // smoother arcade difficulty ramp
     speed += 0.00055;
@@ -824,6 +862,8 @@ function update() {
     spawnTimer--;
     pickupTimer--;
     testShieldTimer--;
+    espressoSpawnTimer--;
+    if (espressoTimer > 0) espressoTimer--;
 
     if (spawnTimer <= 0) {
       spawnHazard();
@@ -833,6 +873,11 @@ function update() {
     if (pickupTimer <= 0) {
       spawnPickup();
       pickupTimer = Math.max(30, 72 - speed * 4);
+    }
+
+    if (espressoSpawnTimer <= 0) {
+      spawnEspressoIcon();
+      espressoSpawnTimer = 500 + Math.random() * 300;
     }
 
     // Visual test only: shield icon spawns occasionally.
@@ -855,10 +900,12 @@ function update() {
     }
     for (const p of pickups) p.x -= p.speed;
     for (const s of testShieldIcons) s.x -= s.speed;
+    for (const e of espressoIcons) e.x -= e.speed;
 
     hazards = hazards.filter(h => h.x > -120);
     pickups = pickups.filter(p => p.x > -80);
     testShieldIcons = testShieldIcons.filter(s => s.x > -80);
+    espressoIcons = espressoIcons.filter(e => e.x > -80);
 
     const hitBox = { x: player.x + 12, y: player.y + 12, w: player.w - 20, h: player.h - 12 };
 
@@ -867,8 +914,20 @@ function update() {
         addHitEffect(player.x + 40, player.y + 40);
         hazards.splice(i, 1);
 
-        if (shieldActive) {
+        if (espressoTimer > 0) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = "#d8b16a";
+      ctx.beginPath();
+      ctx.ellipse(player.x + 45, player.y + 40, 75, 50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (shieldActive) {
           shieldActive = false;
+  espressoIcons = [];
+  espressoTimer = 0;
+  espressoSpawnTimer = 300;
 
           floatingTexts.push({
             x: player.x + 20,
@@ -899,6 +958,14 @@ function update() {
       }
     }
 
+    for (let i = espressoIcons.length - 1; i >= 0; i--) {
+      if (rectsHit(hitBox, espressoIcons[i])) {
+        espressoTimer = 600;
+        floatingTexts.push({x: espressoIcons[i].x, y: espressoIcons[i].y, text: "ESPRESSO!", life: 70});
+        espressoIcons.splice(i,1);
+      }
+    }
+
     // v0.7b: collect shield icon
     for (let i = testShieldIcons.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, testShieldIcons[i])) {
@@ -920,11 +987,21 @@ function update() {
   drawStars();
 
   for (const p of pickups) drawPickup(p);
+  for (const e of espressoIcons) drawEspressoIcon(e);
   for (const s of testShieldIcons) drawTestShieldIcon(s);
   for (const h of hazards) drawHazard(h);
 
   if (running) {
     drawCupShip();
+
+    if (espressoTimer > 0) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = "#d8b16a";
+      ctx.beginPath();
+      ctx.ellipse(player.x + 45, player.y + 40, 75, 50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
     if (shieldActive) {
       ctx.globalAlpha = 0.32 + Math.sin(frame / 7) * 0.08;
