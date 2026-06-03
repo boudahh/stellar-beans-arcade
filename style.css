@@ -123,3 +123,45 @@ canvas {
     radial-gradient(circle at 82% 72%, rgba(0, 180, 220, .16), transparent 30%),
     #05040b;
 }
+
+
+#audioControls {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(2, 2, 8, 0.62);
+  border: 2px solid rgba(216, 177, 106, 0.55);
+  border-radius: 12px;
+  padding: 8px 10px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+
+#audioControls button {
+  margin: 0;
+  padding: 6px 9px;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+#volumeSlider {
+  width: 110px;
+  accent-color: #d8b16a;
+}
+
+@media (orientation: portrait) {
+  #audioControls {
+    right: 10px;
+    bottom: 10px;
+    padding: 7px 8px;
+  }
+
+  #volumeSlider {
+    width: 92px;
+  }
+}
