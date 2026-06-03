@@ -64,6 +64,9 @@ let shieldActive = false;
 let espressoIcons = [];
 let espressoTimer = 0;
 let espressoSpawnTimer = 300;
+let doubleBeanIcons = [];
+let doubleBeansTimer = 0;
+let doubleBeansSpawnTimer = 420;
 
 // v0.5 Atmosphere Pack
 let farStars = [];
@@ -218,6 +221,9 @@ function startGame() {
   espressoIcons = [];
   espressoTimer = 0;
   espressoSpawnTimer = 300;
+  doubleBeanIcons = [];
+  doubleBeansTimer = 0;
+  doubleBeansSpawnTimer = 420;
   player.x = isPortraitMobile() ? canvas.width / 2 - 48 : 140;
   player.y = canvas.height / 2;
   player.health = 3;
@@ -663,6 +669,48 @@ function drawEspressoIcon(p) {
   ctx.restore();
 }
 
+function spawnDoubleBeanIcon() {
+  doubleBeanIcons.push({
+    x: canvas.width + 60,
+    y: 90 + Math.random() * (canvas.height - 190),
+    w: 38,
+    h: 38,
+    speed: speed + 0.7,
+    pulse: Math.random() * Math.PI * 2
+  });
+}
+
+function drawDoubleBeanIcon(p) {
+  const cx = p.x + p.w / 2;
+  const cy = p.y + p.h / 2;
+  const pulse = 1 + Math.sin(frame / 8 + p.pulse) * 0.08;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(pulse, pulse);
+
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = "#7efc9a";
+  ctx.beginPath();
+  ctx.arc(0, 0, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = "#7efc9a";
+  ctx.strokeStyle = "#143a24";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(-17, -15, 34, 30, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#05040b";
+  ctx.font = "bold 18px Courier New";
+  ctx.fillText("2X", -12, 7);
+
+  ctx.restore();
+}
+
 function drawTestShieldIcon(p) {
   const cx = p.x + p.w / 2;
   const cy = p.y + p.h / 2;
@@ -838,6 +886,12 @@ function drawHUD() {
     ctx.fillStyle = "#d8b16a";
     ctx.fillText("ESPRESSO BOOST", 35, 134);
   }
+
+  if (doubleBeansTimer > 0) {
+    ctx.fillStyle = "#7efc9a";
+    ctx.font = "bold 16px Courier New";
+    ctx.fillText("2X BEANS", 35, 156);
+  }
 }
 
 function update() {
@@ -863,7 +917,9 @@ function update() {
     pickupTimer--;
     testShieldTimer--;
     espressoSpawnTimer--;
+    doubleBeansSpawnTimer--;
     if (espressoTimer > 0) espressoTimer--;
+    if (doubleBeansTimer > 0) doubleBeansTimer--;
 
     if (spawnTimer <= 0) {
       spawnHazard();
@@ -878,6 +934,11 @@ function update() {
     if (espressoSpawnTimer <= 0) {
       spawnEspressoIcon();
       espressoSpawnTimer = 500 + Math.random() * 300;
+    }
+
+    if (doubleBeansSpawnTimer <= 0) {
+      spawnDoubleBeanIcon();
+      doubleBeansSpawnTimer = 560 + Math.random() * 340;
     }
 
     // Visual test only: shield icon spawns occasionally.
@@ -901,11 +962,13 @@ function update() {
     for (const p of pickups) p.x -= p.speed;
     for (const s of testShieldIcons) s.x -= s.speed;
     for (const e of espressoIcons) e.x -= e.speed;
+    for (const d of doubleBeanIcons) d.x -= d.speed;
 
     hazards = hazards.filter(h => h.x > -120);
     pickups = pickups.filter(p => p.x > -80);
     testShieldIcons = testShieldIcons.filter(s => s.x > -80);
     espressoIcons = espressoIcons.filter(e => e.x > -80);
+    doubleBeanIcons = doubleBeanIcons.filter(d => d.x > -80);
 
     const hitBox = { x: player.x + 12, y: player.y + 12, w: player.w - 20, h: player.h - 12 };
 
@@ -923,11 +986,23 @@ function update() {
       ctx.globalAlpha = 1;
     }
 
+    if (doubleBeansTimer > 0) {
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = "#7efc9a";
+      ctx.beginPath();
+      ctx.ellipse(player.x + 45, player.y + 40, 78, 52, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     if (shieldActive) {
           shieldActive = false;
   espressoIcons = [];
   espressoTimer = 0;
   espressoSpawnTimer = 300;
+  doubleBeanIcons = [];
+  doubleBeansTimer = 0;
+  doubleBeansSpawnTimer = 420;
 
           floatingTexts.push({
             x: player.x + 20,
@@ -945,7 +1020,8 @@ function update() {
     for (let i = pickups.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, pickups[i])) {
         const kind = pickups[i].kind;
-        const value = kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
+        const baseValue = kind === "gold" ? 100 : kind === "saturn" ? 50 : 10;
+        const value = doubleBeansTimer > 0 ? baseValue * 2 : baseValue;
 
         addPickupEffect(
           pickups[i].x,
@@ -958,10 +1034,20 @@ function update() {
       }
     }
 
+    for (let i = doubleBeanIcons.length - 1; i >= 0; i--) {
+      if (rectsHit(hitBox, doubleBeanIcons[i])) {
+        doubleBeansTimer = 600;
+        floatingTexts.push({x: doubleBeanIcons[i].x, y: doubleBeanIcons[i].y, text: "2X BEANS!", life: 70});
+        addPickupEffect(doubleBeanIcons[i].x, doubleBeanIcons[i].y, 0);
+        doubleBeanIcons.splice(i,1);
+      }
+    }
+
     for (let i = espressoIcons.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, espressoIcons[i])) {
         espressoTimer = 600;
         floatingTexts.push({x: espressoIcons[i].x, y: espressoIcons[i].y, text: "ESPRESSO!", life: 70});
+        addPickupEffect(espressoIcons[i].x, espressoIcons[i].y, 0);
         espressoIcons.splice(i,1);
       }
     }
@@ -988,6 +1074,7 @@ function update() {
 
   for (const p of pickups) drawPickup(p);
   for (const e of espressoIcons) drawEspressoIcon(e);
+  for (const d of doubleBeanIcons) drawDoubleBeanIcon(d);
   for (const s of testShieldIcons) drawTestShieldIcon(s);
   for (const h of hazards) drawHazard(h);
 
@@ -999,6 +1086,15 @@ function update() {
       ctx.fillStyle = "#d8b16a";
       ctx.beginPath();
       ctx.ellipse(player.x + 45, player.y + 40, 75, 50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (doubleBeansTimer > 0) {
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = "#7efc9a";
+      ctx.beginPath();
+      ctx.ellipse(player.x + 45, player.y + 40, 78, 52, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
