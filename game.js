@@ -28,6 +28,73 @@ const finalHigh = document.getElementById("finalHigh");
 const saturnImg = new Image();
 saturnImg.src = "assets/saturn-bean.png";
 
+// v0.8 Sound Pack — lightweight retro arcade sounds
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+}
+
+function playTone(freq, duration, type = "square", volume = 0.05, slideTo = null) {
+  if (!soundEnabled || !audioCtx) return;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+  if (slideTo) {
+    osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+  }
+
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playBeanSound() {
+  playTone(720, 0.06, "square", 0.035, 980);
+}
+
+function playShieldSound() {
+  playTone(360, 0.08, "sine", 0.045, 640);
+  setTimeout(() => playTone(640, 0.10, "sine", 0.04, 920), 70);
+}
+
+function playEspressoSound() {
+  playTone(420, 0.07, "sawtooth", 0.04, 760);
+  setTimeout(() => playTone(760, 0.09, "square", 0.04, 1180), 70);
+  setTimeout(() => playTone(1180, 0.08, "square", 0.035, 1380), 145);
+}
+
+function playDoubleBeansSound() {
+  playTone(620, 0.07, "square", 0.04, 840);
+  setTimeout(() => playTone(920, 0.07, "square", 0.04, 1220), 85);
+}
+
+function playHitSound() {
+  playTone(160, 0.12, "sawtooth", 0.065, 70);
+}
+
+function playStartSound() {
+  playTone(330, 0.08, "square", 0.04, 440);
+  setTimeout(() => playTone(494, 0.08, "square", 0.04, 660), 90);
+  setTimeout(() => playTone(740, 0.12, "square", 0.04, 990), 185);
+}
+
 let running = false;
 let keys = {};
 let score = 0;
@@ -208,6 +275,8 @@ window.addEventListener("resize", () => {
 });
 
 function startGame() {
+  initAudio();
+  playStartSound();
   running = true;
   score = 0;
   speed = 2.4;
@@ -974,6 +1043,7 @@ function update() {
 
     for (let i = hazards.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, hazards[i])) {
+        playHitSound();
         addHitEffect(player.x + 40, player.y + 40);
         hazards.splice(i, 1);
 
@@ -1029,6 +1099,7 @@ function update() {
           value
         );
 
+        playBeanSound();
         score += value;
         pickups.splice(i, 1);
       }
@@ -1037,6 +1108,7 @@ function update() {
     for (let i = doubleBeanIcons.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, doubleBeanIcons[i])) {
         doubleBeansTimer = 600;
+        playDoubleBeansSound();
         floatingTexts.push({x: doubleBeanIcons[i].x, y: doubleBeanIcons[i].y, text: "2X BEANS!", life: 70});
         addPickupEffect(doubleBeanIcons[i].x, doubleBeanIcons[i].y, 0);
         doubleBeanIcons.splice(i,1);
@@ -1046,6 +1118,7 @@ function update() {
     for (let i = espressoIcons.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, espressoIcons[i])) {
         espressoTimer = 600;
+        playEspressoSound();
         floatingTexts.push({x: espressoIcons[i].x, y: espressoIcons[i].y, text: "ESPRESSO!", life: 70});
         addPickupEffect(espressoIcons[i].x, espressoIcons[i].y, 0);
         espressoIcons.splice(i,1);
@@ -1056,6 +1129,7 @@ function update() {
     for (let i = testShieldIcons.length - 1; i >= 0; i--) {
       if (rectsHit(hitBox, testShieldIcons[i])) {
         shieldActive = true;
+        playShieldSound();
 
         floatingTexts.push({
           x: testShieldIcons[i].x,
