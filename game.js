@@ -25,12 +25,17 @@ const restartBtn = document.getElementById("restartBtn");
 const finalScore = document.getElementById("finalScore");
 const finalHigh = document.getElementById("finalHigh");
 
+// Optional audio controls added dynamically so index.html does not need changes.
+let volumeSlider = null;
+let muteBtn = null;
+
 const saturnImg = new Image();
 saturnImg.src = "assets/saturn-bean.png";
 
 // v0.8 Sound Pack — lightweight retro arcade sounds
 let audioCtx = null;
-let soundEnabled = true;
+let soundEnabled = localStorage.getItem("stellarBeansMuted") === "true" ? false : true;
+let masterVolume = Number(localStorage.getItem("stellarBeansVolume") || 0.7);
 
 function initAudio() {
   if (!audioCtx) {
@@ -55,7 +60,8 @@ function playTone(freq, duration, type = "square", volume = 0.05, slideTo = null
     osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
   }
 
-  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  const finalVolume = volume * masterVolume;
+  gain.gain.setValueAtTime(finalVolume, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
 
   osc.connect(gain);
@@ -66,33 +72,33 @@ function playTone(freq, duration, type = "square", volume = 0.05, slideTo = null
 }
 
 function playBeanSound() {
-  playTone(720, 0.06, "square", 0.035, 980);
+  playTone(720, 0.06, "square", 0.12, 980);
 }
 
 function playShieldSound() {
-  playTone(360, 0.08, "sine", 0.045, 640);
-  setTimeout(() => playTone(640, 0.10, "sine", 0.04, 920), 70);
+  playTone(360, 0.08, "sine", 0.16, 640);
+  setTimeout(() => playTone(640, 0.10, "sine", 0.14, 920), 70);
 }
 
 function playEspressoSound() {
-  playTone(420, 0.07, "sawtooth", 0.04, 760);
-  setTimeout(() => playTone(760, 0.09, "square", 0.04, 1180), 70);
-  setTimeout(() => playTone(1180, 0.08, "square", 0.035, 1380), 145);
+  playTone(420, 0.07, "sawtooth", 0.16, 760);
+  setTimeout(() => playTone(760, 0.09, "square", 0.16, 1180), 70);
+  setTimeout(() => playTone(1180, 0.08, "square", 0.14, 1380), 145);
 }
 
 function playDoubleBeansSound() {
-  playTone(620, 0.07, "square", 0.04, 840);
-  setTimeout(() => playTone(920, 0.07, "square", 0.04, 1220), 85);
+  playTone(620, 0.07, "square", 0.16, 840);
+  setTimeout(() => playTone(920, 0.07, "square", 0.16, 1220), 85);
 }
 
 function playHitSound() {
-  playTone(160, 0.12, "sawtooth", 0.065, 70);
+  playTone(160, 0.12, "sawtooth", 0.22, 70);
 }
 
 function playStartSound() {
-  playTone(330, 0.08, "square", 0.04, 440);
-  setTimeout(() => playTone(494, 0.08, "square", 0.04, 660), 90);
-  setTimeout(() => playTone(740, 0.12, "square", 0.04, 990), 185);
+  playTone(330, 0.08, "square", 0.13, 440);
+  setTimeout(() => playTone(494, 0.08, "square", 0.13, 660), 90);
+  setTimeout(() => playTone(740, 0.12, "square", 0.13, 990), 185);
 }
 
 let running = false;
@@ -273,6 +279,41 @@ window.addEventListener("resize", () => {
   keepPlayerOnScreen();
   resetStars();
 });
+
+function setupAudioControls() {
+  if (document.getElementById("audioControls")) return;
+
+  const controls = document.createElement("div");
+  controls.id = "audioControls";
+  controls.innerHTML = `
+    <button id="muteBtn" type="button">${soundEnabled ? "🔊" : "🔇"}</button>
+    <input id="volumeSlider" type="range" min="0" max="100" value="${Math.round(masterVolume * 100)}" />
+  `;
+
+  document.getElementById("gameShell").appendChild(controls);
+
+  volumeSlider = document.getElementById("volumeSlider");
+  muteBtn = document.getElementById("muteBtn");
+
+  volumeSlider.addEventListener("input", () => {
+    masterVolume = Number(volumeSlider.value) / 100;
+    localStorage.setItem("stellarBeansVolume", masterVolume.toString());
+
+    if (masterVolume > 0 && !soundEnabled) {
+      soundEnabled = true;
+      localStorage.setItem("stellarBeansMuted", "false");
+      muteBtn.textContent = "🔊";
+    }
+  });
+
+  muteBtn.addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("stellarBeansMuted", soundEnabled ? "false" : "true");
+    muteBtn.textContent = soundEnabled ? "🔊" : "🔇";
+  });
+}
+
+setupAudioControls();
 
 function startGame() {
   initAudio();
